@@ -1,0 +1,23 @@
+# Demo image: VPP + vpp-ndpi compiled plugin + synthetic traffic loop.
+# Exposes VPP stats socket at /run/vpp/stats.sock for the exporter sidecar.
+#
+# Build: docker build -f Dockerfile.demo -t vpp-ndpi-demo \
+#          --build-arg BASE_IMAGE=ghcr.io/packetlens/vpp-ndpi-dev:base .
+# Run:   docker compose -f compose.demo.yaml up
+
+ARG BASE_IMAGE=ghcr.io/packetlens/vpp-ndpi-dev:base
+FROM ${BASE_IMAGE}
+
+COPY src/         /src/src/
+COPY CMakeLists.txt /src/
+WORKDIR /src/build
+RUN cmake .. && make -j"$(nproc)"
+
+COPY scripts/     /src/scripts/
+COPY labs/        /src/labs/
+
+RUN chmod +x /src/scripts/demo-entrypoint.sh
+
+WORKDIR /src
+
+ENTRYPOINT ["/src/scripts/demo-entrypoint.sh"]

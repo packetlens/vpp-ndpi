@@ -1,0 +1,15 @@
+# CI image: copies plugin source, builds it against installed VPP + libndpi.
+ARG BASE_IMAGE=vpp-ndpi-dev:base
+FROM ${BASE_IMAGE}
+
+COPY src/ /src/src/
+COPY CMakeLists.txt /src/
+
+WORKDIR /src/build
+RUN cmake .. && make -j"$(nproc)"
+
+COPY test/ /src/test/
+COPY scripts/ /src/scripts/
+COPY labs/ /src/labs/
+
+WORKDIR /src

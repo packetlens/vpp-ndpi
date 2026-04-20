@@ -1,0 +1,9 @@
+global:
+  scrape_interval: 5s
+  evaluation_interval: 5s
+
+scrape_configs:
+  - job_name: vpp_ndpi
+    static_configs:
+      - targets: ["vpp-exporter:9197"]
+    metrics_path: /metrics

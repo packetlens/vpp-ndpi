@@ -1,0 +1,39 @@
+{
+  "name": "PacketLens / vpp-ndpi",
+  "image": "ghcr.io/packetlens/vpp-ndpi-dev:base",
+
+  // VPP needs CAP_NET_ADMIN + memfd for huge-page simulation; privileged covers both.
+  "runArgs": ["--privileged"],
+
+  "postCreateCommand": "mkdir -p build && cd build && cmake .. && make -j$(nproc) 2>&1 | tail -3 && echo '✓ vpp-ndpi built successfully'",
+
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-vscode.cpptools",
+        "ms-vscode.cmake-tools",
+        "ms-vscode.cpptools-extension-pack",
+        "golang.go"
+      ],
+      "settings": {
+        "cmake.buildDirectory": "${workspaceFolder}/build",
+        "C_Cpp.default.compilerPath": "/usr/bin/gcc",
+        "C_Cpp.default.includePath": [
+          "${workspaceFolder}/src",
+          "/usr/include/vpp",
+          "/usr/include"
+        ]
+      }
+    }
+  },
+
+  "forwardPorts": [3001],
+  "portsAttributes": {
+    "3001": {
+      "label": "Grafana",
+      "onAutoForward": "openBrowser"
+    }
+  },
+
+  "postStartCommand": "echo 'PacketLens dev environment ready. Run: cd build && make -j$(nproc)'"
+}

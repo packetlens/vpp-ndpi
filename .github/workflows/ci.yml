@@ -1,0 +1,134 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  BASE_IMAGE: ghcr.io/garyachy/vpp-ndpi-dev:base
+
+jobs:
+  test:
+    name: Build & Test
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build CI image
+        run: |
+          docker build \
+            -f Dockerfile.ci \
+            --build-arg BASE_IMAGE=${{ env.BASE_IMAGE }} \
+            -t vpp-ndpi-ci .
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+          cache-dependency-path: exporter/go.sum
+
+      - name: Build exporter
+        run: cd exporter && go build ./...
+
+      - name: Run smoke tests
+        run: |
+          docker run --rm --privileged vpp-ndpi-ci bash -c '
+            mkdir -p /run/vpp /var/log/vpp
+            echo 256 > /sys/kernel/mm/hugepages/hugepages-2048kB/nr_hugepages 2>/dev/null || true
+            cd /src && pytest test/test_smoke.py -v --timeout=120
+          '
+
+      - name: Run integration tests
+        run: |
+          docker run --rm --privileged vpp-ndpi-ci bash -c '
+            mkdir -p /run/vpp /var/log/vpp
+            echo 256 > /sys/kernel/mm/hugepages/hugepages-2048kB/nr_hugepages 2>/dev/null || true
+            cd /src && pytest test/test_ndpi.py -v --timeout=120
+          '
+
+      - name: Run stats segment tests
+        run: |
+          docker run --rm --privileged vpp-ndpi-ci bash -c '
+            mkdir -p /run/vpp /var/log/vpp
+            echo 256 > /sys/kernel/mm/hugepages/hugepages-2048kB/nr_hugepages 2>/dev/null || true
+            cd /src && pytest test/test_stats.py -v --timeout=120
+          '
+
+      - name: Collect logs on failure
+        if: failure()
+        run: |
+          mkdir -p artifacts
+          docker run --rm --privileged \
+            -v ${{ github.workspace }}/artifacts:/artifacts \
+            vpp-ndpi-ci bash -c '
+              cp /var/log/vpp/*.log /artifacts/ 2>/dev/null || true
+            ' || true
+          sudo chmod -R +r artifacts/ 2>/dev/null || true
+
+      - name: Upload artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-logs-${{ github.sha }}
+          path: artifacts/
+          retention-days: 14
+          if-no-files-found: ignore
+
+  publish:
+    name: Publish Images
+    runs-on: ubuntu-24.04
+    needs: test
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Pull base image
+        run: docker pull ${{ env.BASE_IMAGE }}
+
+      - name: Build and push demo image
+        run: |
+          docker build \
+            -f Dockerfile.demo \
+            --build-arg BASE_IMAGE=${{ env.BASE_IMAGE }} \
+            -t ghcr.io/packetlens/vpp-ndpi:latest \
+            -t ghcr.io/packetlens/vpp-ndpi:${{ github.sha }} .
+          docker push ghcr.io/packetlens/vpp-ndpi:latest
+          docker push ghcr.io/packetlens/vpp-ndpi:${{ github.sha }}
+
+      - name: Build and push exporter image
+        run: |
+          docker build \
+            -f exporter/Dockerfile \
+            -t ghcr.io/packetlens/vpp-ndpi-exporter:latest \
+            -t ghcr.io/packetlens/vpp-ndpi-exporter:${{ github.sha }} \
+            exporter/
+          docker push ghcr.io/packetlens/vpp-ndpi-exporter:latest
+          docker push ghcr.io/packetlens/vpp-ndpi-exporter:${{ github.sha }}

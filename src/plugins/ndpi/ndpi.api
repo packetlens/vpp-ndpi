@@ -1,0 +1,34 @@
+/*
+ * ndpi.api - VPP nDPI binary API definitions
+ *
+ * Copyright (c) 2026 PacketFlow (packetflow.dev)
+ */
+
+option version = "0.1.0";
+
+import "vnet/interface_types.api";
+
+/** \brief Enable or disable nDPI observation on an interface */
+autoreply define ndpi_interface_enable_disable {
+  u32 client_index;
+  u32 context;
+  vl_api_interface_index_t sw_if_index;
+  bool enable_disable;
+};
+
+/** \brief Query plugin-wide statistics */
+define ndpi_stats_get {
+  u32 client_index;
+  u32 context;
+};
+
+define ndpi_stats_get_reply {
+  u32 context;
+  i32 retval;
+  u64 packets_cached;
+  u64 packets_scanned;
+  u64 flows_created;
+  u64 flows_classified;
+  u64 flows_gave_up;
+  u64 ndpi_calls;
+};
