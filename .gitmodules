@@ -1,0 +1,4 @@
+[submodule "vpp"]
+	path = vpp
+	url = https://github.com/FDio/vpp.git
+	branch = stable/2510
