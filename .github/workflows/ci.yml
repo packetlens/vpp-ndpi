@@ -1,5 +1,10 @@
 name: CI
 
+# Build the plugin and run tests on every push/PR.
+# Pulls the pre-built base image from GHCR (VPP + libndpi-dev preinstalled).
+# The base image is produced by .github/workflows/base-image.yml.
+# On push to main: also builds and pushes ghcr.io/packetlens/vpp-ndpi:latest
+
 on:
   push:
     branches: [main]
@@ -9,7 +14,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  BASE_IMAGE: ghcr.io/garyachy/vpp-ndpi-dev:base
+  BASE_IMAGE: ghcr.io/packetlens/vpp-ndpi-dev:base
 
 jobs:
   test:
@@ -21,7 +26,8 @@ jobs:
       packages: read
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
       - name: Log in to GHCR
         uses: docker/login-action@v3
@@ -43,32 +49,37 @@ jobs:
           go-version: "1.22"
           cache-dependency-path: exporter/go.sum
 
-      - name: Build exporter
-        run: cd exporter && go build ./...
+      - name: Build Go exporter
+        run: |
+          cd exporter
+          go build ./...
 
       - name: Run smoke tests
         run: |
-          docker run --rm --privileged vpp-ndpi-ci bash -c '
-            mkdir -p /run/vpp /var/log/vpp
-            echo 256 > /sys/kernel/mm/hugepages/hugepages-2048kB/nr_hugepages 2>/dev/null || true
-            cd /src && pytest test/test_smoke.py -v --timeout=120
-          '
+          docker run --rm --privileged vpp-ndpi-ci \
+            bash -c '
+              mkdir -p /run/vpp /var/log/vpp
+              echo 256 > /sys/kernel/mm/hugepages/hugepages-2048kB/nr_hugepages 2>/dev/null || true
+              cd /src && pytest test/test_smoke.py -v --timeout=120
+            '
 
       - name: Run integration tests
         run: |
-          docker run --rm --privileged vpp-ndpi-ci bash -c '
-            mkdir -p /run/vpp /var/log/vpp
-            echo 256 > /sys/kernel/mm/hugepages/hugepages-2048kB/nr_hugepages 2>/dev/null || true
-            cd /src && pytest test/test_ndpi.py -v --timeout=120
-          '
+          docker run --rm --privileged vpp-ndpi-ci \
+            bash -c '
+              mkdir -p /run/vpp /var/log/vpp
+              echo 256 > /sys/kernel/mm/hugepages/hugepages-2048kB/nr_hugepages 2>/dev/null || true
+              cd /src && pytest test/test_ndpi.py -v --timeout=120
+            '
 
       - name: Run stats segment tests
         run: |
-          docker run --rm --privileged vpp-ndpi-ci bash -c '
-            mkdir -p /run/vpp /var/log/vpp
-            echo 256 > /sys/kernel/mm/hugepages/hugepages-2048kB/nr_hugepages 2>/dev/null || true
-            cd /src && pytest test/test_stats.py -v --timeout=120
-          '
+          docker run --rm --privileged vpp-ndpi-ci \
+            bash -c '
+              mkdir -p /run/vpp /var/log/vpp
+              echo 256 > /sys/kernel/mm/hugepages/hugepages-2048kB/nr_hugepages 2>/dev/null || true
+              cd /src && pytest test/test_stats.py -v --timeout=120
+            '
 
       - name: Collect logs on failure
         if: failure()
@@ -76,8 +87,10 @@ jobs:
           mkdir -p artifacts
           docker run --rm --privileged \
             -v ${{ github.workspace }}/artifacts:/artifacts \
-            vpp-ndpi-ci bash -c '
+            vpp-ndpi-ci \
+            bash -c '
               cp /var/log/vpp/*.log /artifacts/ 2>/dev/null || true
+              cp /tmp/vpp.log /artifacts/ 2>/dev/null || true
             ' || true
           sudo chmod -R +r artifacts/ 2>/dev/null || true
 
@@ -101,7 +114,8 @@ jobs:
       packages: write
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
       - name: Log in to GHCR
         uses: docker/login-action@v3
