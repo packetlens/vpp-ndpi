@@ -1,0 +1,34 @@
+{
+  "title": "PacketLens — DPI inside VPP in 5 minutes",
+  "description": "Classify 300+ applications (YouTube, Zoom, Netflix, SIP, TLS) directly inside the FD.io VPP data plane. No mirror port. No external box. Free and open-source.",
+  "difficulty": "Beginner",
+  "time": "10",
+  "details": {
+    "intro": {
+      "text": "intro.md",
+      "foreground": "foreground.sh"
+    },
+    "steps": [
+      {
+        "title": "Start the demo stack",
+        "text": "step1/text.md",
+        "verify": "step1/verify.sh"
+      },
+      {
+        "title": "Classify traffic with nDPI",
+        "text": "step2/text.md",
+        "verify": "step2/verify.sh"
+      },
+      {
+        "title": "Explore the Grafana dashboard",
+        "text": "step3/text.md"
+      }
+    ],
+    "finish": {
+      "text": "finish.md"
+    }
+  },
+  "backend": {
+    "imageid": "ubuntu"
+  }
+}
