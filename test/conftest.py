@@ -56,6 +56,8 @@ plugins {{
     path {plugin_dir}:/usr/lib/x86_64-linux-gnu/vpp_plugins
     plugin default {{ disable }}
     plugin ndpi_plugin.so {{ enable }}
+    plugin cdr_plugin.so {{ enable }}
+    plugin flowspec_recv_plugin.so {{ enable }}
 }}
 
 ndpi {{

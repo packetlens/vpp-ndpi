@@ -72,6 +72,15 @@ jobs:
               cd /src && pytest test/test_ndpi.py -v --timeout=120
             '
 
+      - name: Run plugin tests
+        run: |
+          docker run --rm --privileged vpp-ndpi-ci \
+            bash -c '
+              mkdir -p /run/vpp /var/log/vpp
+              echo 256 > /sys/kernel/mm/hugepages/hugepages-2048kB/nr_hugepages 2>/dev/null || true
+              cd /src && pytest test/test_plugins.py -v --timeout=120
+            '
+
       - name: Run stats segment tests
         run: |
           docker run --rm --privileged vpp-ndpi-ci \
