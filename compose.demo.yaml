@@ -1,0 +1,63 @@
+# PacketLens demo stack — pull and run, no build required.
+#
+# Usage:
+#   docker compose -f compose.demo.yaml up
+#
+# Opens:
+#   Grafana  → http://localhost:3000  (anonymous admin, no login)
+#   VPP CLI  → docker exec -it <vpp-container> vppctl show ndpi applications
+
+services:
+  vpp:
+    image: ${VPP_IMAGE:-ghcr.io/packetlens/vpp-ndpi:latest}
+    container_name: packetlens-vpp
+    privileged: true
+    volumes:
+      - vpp-run:/run/vpp
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "test", "-S", "/run/vpp/cli.sock"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 15s
+
+  vpp-exporter:
+    image: ${EXPORTER_IMAGE:-ghcr.io/packetlens/vpp-ndpi-exporter:latest}
+    container_name: packetlens-exporter
+    command: ["--stats-socket=/run/vpp/stats.sock", "--listen=:9197"]
+    volumes:
+      - vpp-run:/run/vpp:ro
+    depends_on:
+      vpp:
+        condition: service_healthy
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:v2.51.2
+    container_name: packetlens-prometheus
+    volumes:
+      - ./labs/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    depends_on:
+      - vpp-exporter
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:10.4.2
+    container_name: packetlens-grafana
+    environment:
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
+      - GF_AUTH_DISABLE_LOGIN_FORM=true
+      - GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH=/var/lib/grafana/dashboards/flowlens-ndpi.json
+    volumes:
+      - ./labs/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./labs/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    ports:
+      - "${GRAFANA_PORT:-3001}:3000"
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+
+volumes:
+  vpp-run:
