@@ -31,3 +31,8 @@ include_directories(${NDPI_INCLUDE_DIRS})
 link_directories(${NDPI_LIBRARY_DIRS})
 
 add_subdirectory(src/plugins/ndpi)
+
+# flowspec_recv is standalone — it does not depend on nDPI
+add_subdirectory(src/plugins/flowspec_recv)
+
+add_subdirectory(src/plugins/cdr)
