@@ -7,6 +7,9 @@
 - **100G–800G line rate** — VPP multi-worker, scales linearly.
 - **Apache 2.0** — free to use, evaluate, and build on.
 
+> **Status: pre-production.** Lab-validated on our own bench, not yet deployed in
+> production. The figures below are bench measurements, not production telemetry.
+
 Part of the [PacketLens](https://packetlens.dev) plugin suite by [PacketFlow](https://packetflow.dev).
 
 ---
@@ -107,21 +110,27 @@ typedef struct {
 
 ## Plugin stack (PacketLens)
 
-vpp-ndpi is the classification foundation for the full PacketLens suite:
+All of these ship in this repository under Apache 2.0. `policy`, `policer_ndpi`,
+`ipfix` and `flowspec` compile into `ndpi_plugin.so` to avoid cross-`.so` symbol
+dependencies; `cdr` and `flowspec_recv` are separate plugins.
 
-```
-vpp-ndpi (this repo)          ← classify: app, category, SNI, JA3, risk
-  ↓
-vpp-policy                    ← enforce: drop / permit by app class
-vpp-policer-ndpi              ← rate-limit: per-app token-bucket
-  ↓
-vpp-ddos                      ← detect: per-IP PPS/BPS thresholds, SYN proxy, VoIP flood
-vpp-flowspec                  ← react: BGP FlowSpec push to upstream PE
-vpp-cdr                       ← mirror: SIP CDR export via HEP3 to Homer
-vpp-ipfix                     ← export: RFC 7011 IPFIX enriched with nDPI metadata
-```
+| Plugin | Node | What it does |
+|---|---|---|
+| [`ndpi`](https://github.com/packetlens/vpp-ndpi/tree/main/src/plugins/ndpi) | `ndpi-observe` | classify: app, category, SNI, JA3, risk |
+| [`policy`](https://github.com/packetlens/vpp-ndpi/tree/main/src/plugins/policy) | `ndpi-policy` | enforce: drop / permit by application |
+| [`policer_ndpi`](https://github.com/packetlens/vpp-ndpi/tree/main/src/plugins/policer_ndpi) | `ndpi-policer` | rate-limit: per-app token bucket, DSCP marking |
+| [`ipfix`](https://github.com/packetlens/vpp-ndpi/tree/main/src/plugins/ipfix) | — | export: RFC 7011 IPFIX enriched with nDPI metadata |
+| [`flowspec`](https://github.com/packetlens/vpp-ndpi/tree/main/src/plugins/flowspec) | `flowspec-process` | react: BGP FlowSpec push to an upstream PE |
+| [`flowspec_recv`](https://github.com/packetlens/vpp-ndpi/tree/main/src/plugins/flowspec_recv) | `flowspec-recv` | scrub: enforce RFC 8955 rules from a controller |
+| [`cdr`](https://github.com/packetlens/vpp-ndpi/tree/main/src/plugins/cdr) | `cdr-observe` | mirror: SIP CDR export via HEP3 to Homer |
+| [`exporter`](https://github.com/packetlens/vpp-ndpi/tree/main/exporter) | — | scrape: Prometheus metrics, Grafana dashboard |
 
-Commercial plugins and support available from [PacketFlow](https://packetflow.dev).
+Related repositories: [ndpi-observe](https://github.com/packetlens/ndpi-observe)
+(TC/eBPF classifier, no VPP required) and
+[vpp-rtp-asr](https://github.com/packetlens/vpp-rtp-asr) (inline RTP tap with
+streaming speech recognition).
+
+Commercial support available from [PacketFlow](https://packetflow.dev).
 
 ---
 
@@ -130,7 +139,13 @@ Commercial plugins and support available from [PacketFlow](https://packetflow.de
 ```
 vpp-ndpi/
 ├── CMakeLists.txt
-├── src/plugins/ndpi/       Core DPI classification plugin (C)
+├── src/plugins/ndpi/           Core DPI classification plugin (C)
+├── src/plugins/policy/         Per-application permit / drop
+├── src/plugins/policer_ndpi/   Per-application rate limiting
+├── src/plugins/ipfix/          IPFIX / NetFlow export
+├── src/plugins/flowspec/       BGP FlowSpec push
+├── src/plugins/flowspec_recv/  BGP FlowSpec enforcement
+├── src/plugins/cdr/            SIP CDR export (HEP3)
 ├── exporter/               Prometheus metrics exporter (Go)
 ├── test/                   pytest integration tests
 ├── scripts/                Demo entrypoint
