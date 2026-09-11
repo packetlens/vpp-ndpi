@@ -1,0 +1,45 @@
+/*
+ * ipfix.api - vpp-ipfix binary API definitions
+ *
+ * Copyright (c) 2026 PacketFlow (packetflow.dev)
+ */
+
+option version = "0.1.0";
+
+/** \brief Add a collector (up to 4). Replaces same IP:port if already set. */
+autoreply define ndpi_ipfix_exporter_set {
+  u32 client_index;
+  u32 context;
+  u8 collector_ip[4];
+  u16 collector_port;
+  u8 src_ip[4];  /* 0.0.0.0 = INADDR_ANY */
+};
+
+/** \brief Remove all collectors and disable export. */
+autoreply define ndpi_ipfix_exporter_clear {
+  u32 client_index;
+  u32 context;
+};
+
+/** \brief Enable or disable IPFIX export. */
+autoreply define ndpi_ipfix_enable_disable {
+  u32 client_index;
+  u32 context;
+  bool enable;
+};
+
+/** \brief Dump export counters. */
+define ndpi_ipfix_stats_get {
+  u32 client_index;
+  u32 context;
+};
+
+define ndpi_ipfix_stats_get_reply {
+  u32 context;
+  i32 retval;
+  u64 flows_exported;
+  u64 pdus_sent;
+  u64 ring_overflow_drops;
+  u64 udp_send_errors;
+  u64 templates_sent;
+};
